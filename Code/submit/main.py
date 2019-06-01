@@ -14,7 +14,6 @@ from torch.utils.data import DataLoader
 from dataset import *
 from model import Seq2Seq
 from scoreboard import Scoreboard
-from beamsearch import beam_search
 
 # Paths
 MODEL_PATH = './Models'
@@ -166,33 +165,6 @@ def test_model(model, test_loader, device):
         # all_predictions = map_strings_to_closest_words(all_predictions, word_dict)
         # Save predictions in csv file.
         save_test_results(all_predictions)
-        print('\nTotal Test Predictions: %d Time: %d s' % (len(all_predictions), end_time - start_time))
-
-# NOTE: Batch size must be one for test_model2 !!
-def test_model2(model, test_loader, device, word_dict):
-    with torch.no_grad():
-        model.eval()
-        start_time = time.time()
-        all_predictions = []
-        eos_token = test_loader.dataset.vocab.index('<eos>')
-        for batch_idx, (inputs, _, _, _, _, seq_order) in enumerate(test_loader):
-            hypos = beam_search(model.get_initial_state, model.generate, inputs, eos_token,
-                                batch_size=1, beam_width=8, num_hypotheses=1, max_length=250)
-            pred_list = []
-            for n in hypos:
-                nn = n.to_sequence_of_values()
-                pred_list.append(nn[1:][:-1])
-            attention_weights = [n.to_sequence_of_extras() for n in hypos]
-            pred_str = generate_labels_string(pred_list,
-                                                test_loader.dataset.vocab)
-            torch.save(attention_weights, 'attention_weights_test.pt')
-            all_predictions.extend(pred_str)
-            print('Test Iteration: %d/%d' % (batch_idx+1, len(test_loader)), end="\r", flush=True)
-        # Try to map words in strings to closest words.
-        # all_predictions = map_strings_to_closest_words(all_predictions, word_dict)
-        # Save predictions in csv file.
-        save_test_results(all_predictions)
-        end_time = time.time()
         print('\nTotal Test Predictions: %d Time: %d s' % (len(all_predictions), end_time - start_time))
 
 def val_model(model, val_loader, device, sb):
@@ -370,5 +342,4 @@ if __name__ == "__main__":
     else:
         # Only testing the model.
         test_model(model, test_loader, device)
-        #test_model2(model, test_loader, device, WORD_DICT)
     print('='*20)

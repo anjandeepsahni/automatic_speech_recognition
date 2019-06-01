@@ -19,32 +19,6 @@ class LockedDropout(nn.Module):
         mask = mask.expand_as(x)
         return mask * x
 
-'''
-class WeightDrop(nn.Module):
-    def __init__(self, module, weights, dropout=0):
-        super(WeightDrop, self).__init__()
-        self.module = module
-        self.weights = weights
-        self.dropout = dropout
-        if issubclass(type(self.module), torch.nn.RNNBase):
-            self.module.flatten_parameters = self.dummy_flatten
-        for name_w in self.weights:
-            print('Applying weight drop of {} to {}'.format(self.dropout, name_w))
-            w = getattr(self.module, name_w)
-            del self.module._parameters[name_w]
-            self.module.register_parameter(name_w + '_raw', nn.Parameter(w))
-
-    def dummy_flatten(*args, **kwargs):
-        return
-
-    def forward(self, *args):
-        for name_w in self.weights:
-            raw_w = getattr(self.module, name_w + '_raw')
-            w = torch.nn.functional.dropout(raw_w, p=self.dropout, training=self.training)
-            setattr(self.module, name_w, nn.Parameter(w))
-        return self.module.forward(*args)
-'''
-
 class BackHook(torch.nn.Module):
     def __init__(self, hook):
         super(BackHook, self).__init__()
@@ -257,27 +231,3 @@ class Seq2Seq(nn.Module):
                 word = word_vec.max(1)[1]
             attention_weights.append(attention)
         return prediction, attention_weights
-
-    def get_initial_state(self, inputs, batch_size):
-        self._lens, self._key, self._value, hidden2 = self.encoder(inputs)
-        self._mask = torch.arange(self._lens.max()).unsqueeze(0) < self._lens.unsqueeze(1)
-        self._mask = self._mask.to(self.device)
-        word = torch.zeros(batch_size).long().to(self.device)
-        return [None, None, hidden2, None], word   # Initial state is none.
-
-    def generate(self, prev_words, prev_states):
-        new_states, raw_preds, attention_scores = [], [], []
-        for prev_word, prev_state in zip(prev_words, prev_states):
-            prev_word = Variable(self._value.data.new(1).long().fill_(int(prev_word)))
-            hidden1, cell1, hidden2, cell2 = prev_state[0], prev_state[1], prev_state[2], prev_state[3]
-            context, attention = self.attention(hidden2, self._key, self._value, self._mask)
-            first_step = False
-            if prev_state[0] is None:
-                first_step = True    # First timestep.
-            word_vec, hidden1, cell1, hidden2, cell2 = self.decoder(prev_word, context, hidden1,
-                                                                    cell1, hidden2, cell2, first_step=first_step)
-            new_state = [hidden1, cell1, hidden2, cell2]
-            new_states.append(new_state)
-            raw_preds.append(F.softmax(word_vec, dim=1).squeeze().data.cpu().numpy())
-            attention_scores.append(attention)
-        return new_states, raw_preds, attention_scores

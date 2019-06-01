@@ -5,7 +5,7 @@ import numpy as np
 import torch.nn.utils.rnn as rnn
 from torch.utils.data import Dataset as Dataset
 
-SPEECH_DATA_PATH = './../Data_Orig'
+SPEECH_DATA_PATH = './../Data'
 
 IGNORE_ID = -1
 VOCAB = ['<eos>', ' ', "'", '+', '-', '.', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',
