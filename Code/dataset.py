@@ -1,15 +1,19 @@
 import os
-import copy
-import torch
+
 import numpy as np
+import torch
 import torch.nn.utils.rnn as rnn
 from torch.utils.data import Dataset as Dataset
 
 SPEECH_DATA_PATH = './../Data_Orig'
 
 IGNORE_ID = -1
-VOCAB = ['<eos>', ' ', "'", '+', '-', '.', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',
-        'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '_']
+VOCAB = [
+    '<eos>', ' ', "'", '+', '-', '.', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
+    'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W',
+    'X', 'Y', 'Z', '_'
+]
+
 
 class SpeechDataset(Dataset):
     def __init__(self, mode='train'):
@@ -17,20 +21,16 @@ class SpeechDataset(Dataset):
         self.mode = mode
         valid_modes = {'train', 'dev', 'test'}
         if self.mode not in valid_modes:
-            raise ValueError("SpeechDataset Error: Mode must be one of %r." % valid_modes)
+            raise ValueError("SpeechDataset Error: Mode must be one of %r." %
+                             valid_modes)
         self.vocab = VOCAB
         self.vocab_size = len(VOCAB)
         # Load the data and labels (labels = None for 'test' mode)
         # Labels must be a set of strings.
         self.data, self.labels_raw = self.loadRawData()
-        #TESTING
-        #print('Mode:', self.mode)
-        #print('Data Sample:', self.data[0])
-        #print('Label Sample:', self.labels[0])
         if self.mode != 'test':
             self.labels = self.labels_raw.copy()
             self._preprocess_labels()
-            #print('Label Sample Preprocessed:', self.labels[0])
 
     def _preprocess_labels(self):
         for idx in range(len(self.labels)):
@@ -43,7 +43,6 @@ class SpeechDataset(Dataset):
             self.labels[idx] = torch.from_numpy(np.array(label)).long()
 
     def __len__(self):
-        #return 64
         return len(self.data)
 
     def __getitem__(self, idx):
@@ -56,17 +55,18 @@ class SpeechDataset(Dataset):
 
     def loadRawData(self):
         if self.mode == 'train' or self.mode == 'dev':
-            return (
-                np.load(os.path.join(SPEECH_DATA_PATH, '{}.npy'.format(self.mode)), encoding='bytes'),
-                np.load(os.path.join(SPEECH_DATA_PATH, '{}_transcripts.npy'.format(self.mode)), encoding='bytes')
-                )
-        else:   # No labels in test mode.
-            return (
-                np.load(os.path.join(SPEECH_DATA_PATH, 'test.npy'), encoding='bytes'),
-                None
-                )
+            return (np.load(os.path.join(SPEECH_DATA_PATH,
+                                         '{}.npy'.format(self.mode)),
+                            encoding='bytes'),
+                    np.load(os.path.join(
+                        SPEECH_DATA_PATH,
+                        '{}_transcripts.npy'.format(self.mode)),
+                            encoding='bytes'))
+        else:  # No labels in test mode.
+            return (np.load(os.path.join(SPEECH_DATA_PATH, 'test.npy'),
+                            encoding='bytes'), None)
 
-    def _generate_vocab():
+    def _generate_vocab(self):
         vocab = set({})
         for utt in self.labels:
             for w in utt:
@@ -76,13 +76,17 @@ class SpeechDataset(Dataset):
         vocab = ['<eos>', ' '] + vocab
         return vocab
 
+
 # Modify the batch in collate_fn to sort the
 # batch in decreasing order of size.
 def SpeechCollateFn(seq_list):
     inputs, targets = zip(*seq_list)
     inp_lens = [len(seq) for seq in inputs]
-    seq_order = sorted(range(len(inp_lens)), key=inp_lens.__getitem__, reverse=True)
-    inputs = [inputs[i].type(torch.float32) for i in seq_order]     # RNN does not accept Float64.
+    seq_order = sorted(range(len(inp_lens)),
+                       key=inp_lens.__getitem__,
+                       reverse=True)
+    inputs = [inputs[i].type(torch.float32)
+              for i in seq_order]  # RNN does not accept Float64.
     inp_lens = [len(seq) for seq in inputs]
     tar_lens = []
     targets_loss = None
